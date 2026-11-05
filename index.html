@@ -43,6 +43,20 @@ body.authenticated #authGate { display:none !important; }
     <input id="loginEmail" type="email" autocomplete="username" required placeholder="tu-correo@empresa.com">
     <label for="loginPassword">Contraseña</label>
     <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Tu contraseña">
+   <button type="button" id="forgotPasswordButton" style="background:none;color:#668172;border:none;padding:8px 0;cursor:pointer;text-align:left">
+  ¿Olvidaste tu contraseña?
+</button>
+
+<div id="recoveryPanel" style="display:none;margin-top:15px">
+  <h3>Crear nueva contraseña</h3>
+  <label for="newPassword">Nueva contraseña</label>
+  <input id="newPassword" type="password" minlength="6" placeholder="Escribe tu nueva contraseña">
+  <label for="confirmPassword">Confirmar contraseña</label>
+  <input id="confirmPassword" type="password" minlength="6" placeholder="Repite tu contraseña">
+  <button type="button" id="saveNewPasswordButton">Guardar nueva contraseña</button>
+</div>
+
+<div id="recoveryMessage" role="status"></div>
     <div id="authError" role="alert"></div>
     <button id="loginButton" type="submit">Ingresar al inventario</button>
     <p style="font-size:11px;margin-bottom:0">La cuenta se crea previamente en Supabase Authentication. No compartas esta contraseña con terceros.</p>
@@ -205,7 +219,74 @@ function orderHtml(o){return `<h1>Solicitud de pedido ${esc(o.id)}</h1><p><b>Fec
     loginButton.disabled = false;
     loginButton.textContent = "Ingresar al inventario";
   });
+  const forgotPasswordButton = document.getElementById("forgotPasswordButton");
+  const recoveryPanel = document.getElementById("recoveryPanel");
+  const recoveryMessage = document.getElementById("recoveryMessage");
+  const saveNewPasswordButton = document.getElementById("saveNewPasswordButton");
 
+  forgotPasswordButton.addEventListener("click", async () => {
+    const email = document.getElementById("loginEmail").value.trim();
+
+    if (!email) {
+      recoveryMessage.textContent = "Primero escribe tu correo electrónico.";
+      return;
+    }
+
+    recoveryMessage.textContent = "Enviando enlace de recuperación...";
+
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname
+    });
+
+    recoveryMessage.textContent = error
+      ? "Error: " + error.message
+      : "Te enviamos un enlace a tu correo. Ábrelo para crear una nueva contraseña.";
+  });
+
+  client.auth.onAuthStateChange((event) => {
+    if (event === "PASSWORD_RECOVERY") {
+      recoveryPanel.style.display = "block";
+      recoveryMessage.textContent = "Escribe y confirma tu nueva contraseña.";
+      document.getElementById("loginEmail").disabled = true;
+      document.getElementById("loginPassword").disabled = true;
+      forgotPasswordButton.style.display = "none";
+    }
+  });
+
+  saveNewPasswordButton.addEventListener("click", async () => {
+    const password = document.getElementById("newPassword").value;
+    const confirmation = document.getElementById("confirmPassword").value;
+
+    if (password.length < 6) {
+      recoveryMessage.textContent = "La contraseña debe tener al menos 6 caracteres.";
+      return;
+    }
+
+    if (password !== confirmation) {
+      recoveryMessage.textContent = "Las contraseñas no coinciden.";
+      return;
+    }
+
+    saveNewPasswordButton.disabled = true;
+    recoveryMessage.textContent = "Guardando contraseña...";
+
+    const { error } = await client.auth.updateUser({ password });
+
+    if (error) {
+      recoveryMessage.textContent = "No se pudo guardar: " + error.message;
+      saveNewPasswordButton.disabled = false;
+      return;
+    }
+
+    recoveryMessage.textContent = "¡Contraseña actualizada! Ya puedes ingresar con tu nueva contraseña.";
+    recoveryPanel.style.display = "none";
+    document.getElementById("loginEmail").disabled = false;
+    document.getElementById("loginPassword").disabled = false;
+    document.getElementById("loginPassword").value = "";
+    forgotPasswordButton.style.display = "block";
+    saveNewPasswordButton.disabled = false;
+  });
+ 
   // Sobrescribe la persistencia local: cada cambio se guarda en Supabase.
   // Se usa control de revisión para detectar escrituras simultáneas y evitar
   // que una versión antigua sobrescriba silenciosamente la más reciente.
