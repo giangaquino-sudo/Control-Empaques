@@ -16,12 +16,42 @@
 @media(prefers-color-scheme:dark){.app{--site-background:#141A17;--site-on-background:#E8EEE9}.sidebar{background:#102E25}.staticon{background:#294337;color:#DAEADF}.btn.soft{background:#294337;color:#DAEADF}.notice{background:#203329}.pill.gray{background:#343E37;color:#DAE2DB}}
 @media(max-width:1050px){.sidebar{width:215px}.content{padding:24px 20px}.topbar{padding:0 20px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.two-col{grid-template-columns:1fr}}
 @media(max-width:700px){.app{display:block}.sidebar{display:none}.topbar{height:60px;padding:0 15px}.mobilemenu{display:inline-flex}.content{padding:20px 13px}.headingrow{flex-direction:column}.cards{gap:9px}.stat{padding:13px}.statnum{font-size:23px}.stathead{font-size:10px}.headingrow h2{font-size:24px}.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}.search{min-width:100%;width:100%}.panelhead{align-items:flex-start;flex-direction:column}.topright{gap:8px}}
+
+/* Acceso y estado de sincronización Supabase */
+body:not(.authenticated) #app { display:none !important; }
+#authGate { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:22px; background:#F4F6F3; color:#1D2B25; font-family:Inter,ui-sans-serif,system-ui,sans-serif; }
+body.authenticated #authGate { display:none !important; }
+.auth-card { width:min(100%,420px); background:#fff; border:1px solid #DDE4DE; border-radius:16px; padding:26px; box-shadow:0 12px 40px #173f3512; }
+.auth-card h2 { margin:0 0 8px; font-size:23px; }
+.auth-card p { color:#68766d; font-size:13px; line-height:1.5; }
+.auth-card label { display:block; font-size:12px; font-weight:700; margin:14px 0 6px; }
+.auth-card input { width:100%; padding:12px; border:1px solid #D6DFD8; border-radius:8px; font:inherit; }
+.auth-card button { width:100%; margin-top:18px; padding:12px; border:0; border-radius:9px; background:#173F35; color:white; font-weight:700; cursor:pointer; }
+#authError { color:#A63E37; min-height:18px; font-size:12px; }
+.sync-status { font-size:11px; color:#23683D; white-space:nowrap; }
+
 </style>
 </head>
 <body>
+
+<div id="authGate">
+  <form class="auth-card" id="loginForm">
+    <div style="font-size:12px;font-weight:800;letter-spacing:1px;color:#668172;margin-bottom:10px">CONTROL DE EMPAQUES</div>
+    <h2>Iniciar sesión</h2>
+    <p>Ingresa con la cuenta compartida para acceder al mismo inventario desde tu PC y tu celular.</p>
+    <label for="loginEmail">Correo electrónico</label>
+    <input id="loginEmail" type="email" autocomplete="username" required placeholder="tu-correo@empresa.com">
+    <label for="loginPassword">Contraseña</label>
+    <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Tu contraseña">
+    <div id="authError" role="alert"></div>
+    <button id="loginButton" type="submit">Ingresar al inventario</button>
+    <p style="font-size:11px;margin-bottom:0">La cuenta se crea previamente en Supabase Authentication. No compartas esta contraseña con terceros.</p>
+  </form>
+</div>
+
 <div class="app" id="app">
 <aside class="sidebar"><div class="brand"><div class="brandmark">CE</div><div><h1>Control Empaques</h1><small>Gestión de inventario</small></div></div><div class="navlabel">MENÚ PRINCIPAL</div><nav class="nav" id="nav">
-<button class="active" data-page="dashboard"><span class="ico">▦</span>Resumen general</button><button data-page="stock"><span class="ico">▤</span>Kardex / Stock</button><button data-page="movement"><span class="ico">⇄</span>Ingresos y salidas</button><button data-page="orders"><span class="ico">☷</span>Solicitudes de pedido</button><button data-page="arrivals"><span class="ico">📦</span>Mercadería recibida</button><button data-page="history"><span class="ico">◷</span>Historial de movimientos</button><button data-page="catalog"><span class="ico">＋</span>Catálogo de empaques</button></nav><div class="sidefoot"><strong>● Inventario local</strong>Prototipo de demostración. Los datos se guardan en este navegador.</div></aside>
+<button class="active" data-page="dashboard"><span class="ico">▦</span>Resumen general</button><button data-page="stock"><span class="ico">▤</span>Kardex / Stock</button><button data-page="movement"><span class="ico">⇄</span>Ingresos y salidas</button><button data-page="orders"><span class="ico">☷</span>Solicitudes de pedido</button><button data-page="arrivals"><span class="ico">📦</span>Mercadería recibida</button><button data-page="history"><span class="ico">◷</span>Historial de movimientos</button><button data-page="catalog"><span class="ico">＋</span>Catálogo de empaques</button></nav><div class="sidefoot"><strong>● Inventario en la nube</strong>Datos compartidos y sincronizados con Supabase.</div></aside>
 <main class="main"><header class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="btn mobilemenu" id="mobileMenu">☰ Menú</button><div class="crumb">Operaciones / <strong id="crumb">Resumen general</strong></div></div><div class="topright"><span>Miércoles, 21 oct. 2026</span><div class="avatar">GE</div></div></header>
 <div class="content">
 <section class="section active" id="page-dashboard"><div class="headingrow"><div><div class="eyebrow">CENTRO DE CONTROL</div><h2>Resumen general</h2><div class="sub">Vista rápida de tus empaques, lotes y movimientos.</div></div><button class="btn primary" onclick="go('movement')">＋ Registrar movimiento</button></div>
@@ -64,7 +94,180 @@ function editMove(id){let m=db.moves.find(m=>m.id===id);if(!m)return;let qty=pro
 function renderCatalog(){let q=(document.getElementById('catalogSearch')?.value||'').toLowerCase();document.getElementById('catalogCount').textContent=db.products.length+' empaques';document.getElementById('catalogRows').innerHTML=db.products.filter(p=>(p.name+' '+p.code+' '+p.barcode).toLowerCase().includes(q)).map(p=>`<tr><td><div class="productname">${esc(p.name)}</div><div class="muted">${esc(p.obs||'')}</div></td><td>${esc(p.code)}</td><td>${esc(p.barcode||'—')}</td><td><b>${stock(p)}</b></td><td><button class="smallbtn" onclick="editProduct('${p.id}')">✎</button><button class="smallbtn" onclick="printProduct('${p.id}')">⎙</button><button class="smallbtn" onclick="deleteProduct('${p.id}')">×</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Sin resultados.</td></tr>'}
 function resetCatalogForm(){document.getElementById('catalogForm').reset();document.getElementById('editProductId').value='';document.getElementById('prodMin').value=20;document.getElementById('prodMax').value=500;document.getElementById('catalogFormTitle').textContent='Nuevo empaque'}function editProduct(id){let p=product(id);if(!p)return;go('catalog');document.getElementById('editProductId').value=id;document.getElementById('prodName').value=p.name;document.getElementById('prodCode').value=p.code;document.getElementById('prodBarcode').value=p.barcode;document.getElementById('prodMin').value=p.min;document.getElementById('prodMax').value=p.max;document.getElementById('prodPhysical').value=p.physical??'';document.getElementById('prodObs').value=p.obs||'';document.getElementById('catalogFormTitle').textContent='Editar empaque'}function generateBarcode(){document.getElementById('prodBarcode').value='200'+String(Date.now()).slice(-10);toast('Código interno generado.')}document.getElementById('catalogForm').addEventListener('submit',e=>{e.preventDefault();let id=document.getElementById('editProductId').value,name=document.getElementById('prodName').value.trim(),code=document.getElementById('prodCode').value.trim(),barcode=document.getElementById('prodBarcode').value.trim();if(db.products.some(p=>p.code.toLowerCase()===code.toLowerCase()&&p.id!==id))return toast('Ese código de producto ya existe.');if(barcode&&db.products.some(p=>p.barcode===barcode&&p.id!==id))return toast('Ese código de barras ya existe.');let vals={name,code,barcode,min:Number(document.getElementById('prodMin').value)||0,max:Number(document.getElementById('prodMax').value)||500,physical:document.getElementById('prodPhysical').value===''?null:Number(document.getElementById('prodPhysical').value),obs:document.getElementById('prodObs').value};if(id)Object.assign(product(id),vals);else db.products.push({id:'p'+(++db.seq),...vals,lots:[],extras:[]});persist();resetCatalogForm();toast(id?'Empaque actualizado.':'Empaque creado.')});function deleteProduct(id){let p=product(id);if(!p)return;if(db.moves.some(m=>m.pid===id)||db.orders.some(o=>o.lines.some(l=>l.pid===id)))return toast('No se puede eliminar: tiene historial o pedidos asociados.');if(confirm('¿Eliminar '+p.name+'?')){db.products=db.products.filter(x=>x.id!==id);persist()}}function addExtra(id){let p=product(id),q=prompt('Cantidad de demasías (no suma al stock):','1');if(q===null)return;q=Number(q);if(!Number.isInteger(q)||q<1)return toast('Cantidad inválida.');let obs=prompt('Observación de la demasía:','Llegó cantidad adicional');if(obs===null)return;p.extras.push({qty:q,obs,date:new Date().toISOString()});db.moves.unshift({id:'D-'+String(Date.now()).slice(-7),type:'Demasía',pid:id,supplier:'No especificado',lot:'—',qty:0,extra:q,obs,date:new Date().toISOString()});persist();toast('Demasía anotada sin modificar el stock.')}
 function printProduct(id){let p=product(id);if(!p)return;let rows=p.lots.map(l=>`<tr><td>${esc(l.lot)}</td><td>${esc(l.supplier)}</td><td>${l.qty}</td><td>${esc(l.obs||'')}</td></tr>`).join('');let extras=p.extras.map(x=>`<li>${x.qty} unidades informativas · ${datefmt(x.date)} · ${esc(x.obs)}</li>`).join('');printHtml(`<h1>Kardex / Stock de empaque</h1><p><b>${esc(p.name)}</b> · ${esc(p.code)} · Barras: ${esc(p.barcode||'Sin código')}</p><p><b>Stock real:</b> ${stock(p)} unidades · <b>Estado:</b> ${status(p)[0]} · <b>Stock físico:</b> ${p.physical??'No contado'}</p><h3>Detalle de lotes</h3><table><thead><tr><th>Lote</th><th>Proveedor</th><th>Cantidad</th><th>Observaciones</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Sin lotes</td></tr>'}</tbody></table><h3>Demasías informativas (no suman al stock)</h3><ul>${extras||'<li>Sin demasías</li>'}</ul>`,'Kardex '+p.code)}
-function orderHtml(o){return `<h1>Solicitud de pedido ${esc(o.id)}</h1><p><b>Fecha:</b> ${datefmt(o.date)} · <b>Solicitante:</b> ${esc(o.requester||'—')} · <b>Área:</b> ${esc(o.area||'—')}</p><table><thead><tr><th>Código</th><th>Empaque</th><th>Lote</th><th>Proveedor</th><th>Cantidad</th><th>Observaciones</th></tr></thead><tbody>${o.lines.map(l=>`<tr><td>${esc(product(l.pid)?.code||'')}</td><td>${esc(product(l.pid)?.name||'Empaque eliminado')}</td><td>${esc(l.lot)}</td><td>${esc(l.supplier)}</td><td>${l.qty}</td><td>${esc(l.obs||'')}</td></tr>`).join('')}</tbody></table><p><b>Observación general:</b> ${esc(o.obs||'—')}</p>`}function printReport(type){let html='',title='Reporte de inventario';if(type==='stock'){title='Kardex / Stock general';html=`<h1>${title}</h1><p>Generado: ${datefmt(new Date())}</p><table><thead><tr><th>Código</th><th>Empaque</th><th>Stock real</th><th>Lotes</th><th>Demasías informativas</th><th>Estado</th><th>Cuadre</th></tr></thead><tbody>${db.products.map(p=>`<tr><td>${esc(p.code)}</td><td>${esc(p.name)}</td><td>${stock(p)}</td><td>${p.lots.length}</td><td>${p.extras.reduce((n,x)=>n+x.qty,0)}</td><td>${status(p)[0]}</td><td>${p.physical==null?'Sin conteo':p.physical===stock(p)?'Cuadrado':'Por cuadrar'}</td></tr>`).join('')}</tbody></table><h2>Detalle por lote</h2><table><thead><tr><th>Empaque</th><th>Lote</th><th>Proveedor</th><th>Cantidad</th><th>Observaciones</th></tr></thead><tbody>${db.products.flatMap(p=>p.lots.map(l=>`<tr><td>${esc(p.name)}</td><td>${esc(l.lot)}</td><td>${esc(l.supplier)}</td><td>${l.qty}</td><td>${esc(l.obs||'')}</td></tr>`)).join('')}</tbody></table>`}else if(type==='history'){title='Historial de movimientos';html=`<h1>${title}</h1><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Empaque</th><th>Proveedor</th><th>Lote</th><th>Cantidad</th><th>Observación</th></tr></thead><tbody>${db.moves.map(m=>`<tr><td>${datefmt(m.date)}</td><td>${esc(m.type)}</td><td>${esc(product(m.pid)?.name||'')}</td><td>${esc(m.supplier)}</td><td>${esc(m.lot)}</td><td>${m.qty}</td><td>${esc(m.obs||'')}</td></tr>`).join('')}</tbody></table>`}else if(type==='orders'){title='Solicitudes de pedido';html=`<h1>${title}</h1>${db.orders.map(o=>orderHtml(o)).join('<hr>')}`}else if(type==='draftOrder'){let o={id:editingOrderId||'BORRADOR',date:new Date().toISOString(),requester:document.getElementById('orderRequester').value,area:document.getElementById('orderArea').value,obs:document.getElementById('orderGeneralObs').value,lines:draftLines};title='Solicitud de pedido';html=orderHtml(o)}printHtml(html,title)}function printHtml(html,title){let w=window.open('','_blank');if(!w){toast('Permite ventanas emergentes para imprimir o guardar en PDF.');return}w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font:12px Arial,sans-serif;padding:28px;color:#17251D}h1{font-size:22px}h3{margin-top:24px}table{width:100%;border-collapse:collapse;margin:12px 0 24px}td,th{border:1px solid #ccd5ce;text-align:left;padding:8px}th{background:#edf3ee}p{line-height:1.5}@media print{button{display:none}}</style></head><body>${html}<script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close()}
+function orderHtml(o){return `<h1>Solicitud de pedido ${esc(o.id)}</h1><p><b>Fecha:</b> ${datefmt(o.date)} · <b>Solicitante:</b> ${esc(o.requester||'—')} · <b>Área:</b> ${esc(o.area||'—')}</p><table><thead><tr><th>Código</th><th>Empaque</th><th>Lote</th><th>Proveedor</th><th>Cantidad</th><th>Observaciones</th></tr></thead><tbody>${o.lines.map(l=>`<tr><td>${esc(product(l.pid)?.code||'')}</td><td>${esc(product(l.pid)?.name||'Empaque eliminado')}</td><td>${esc(l.lot)}</td><td>${esc(l.supplier)}</td><td>${l.qty}</td><td>${esc(l.obs||'')}</td></tr>`).join('')}</tbody></table><p><b>Observación general:</b> ${esc(o.obs||'—')}</p>`}function printReport(type){let html='',title='Reporte de inventario';if(type==='stock'){title='Kardex / Stock general';html=`<h1>${title}</h1><p>Generado: ${datefmt(new Date())}</p><table><thead><tr><th>Código</th><th>Empaque</th><th>Stock real</th><th>Lotes</th><th>Demasías informativas</th><th>Estado</th><th>Cuadre</th></tr></thead><tbody>${db.products.map(p=>`<tr><td>${esc(p.code)}</td><td>${esc(p.name)}</td><td>${stock(p)}</td><td>${p.lots.length}</td><td>${p.extras.reduce((n,x)=>n+x.qty,0)}</td><td>${status(p)[0]}</td><td>${p.physical==null?'Sin conteo':p.physical===stock(p)?'Cuadrado':'Por cuadrar'}</td></tr>`).join('')}</tbody></table><h2>Detalle por lote</h2><table><thead><tr><th>Empaque</th><th>Lote</th><th>Proveedor</th><th>Cantidad</th><th>Observaciones</th></tr></thead><tbody>${db.products.flatMap(p=>p.lots.map(l=>`<tr><td>${esc(p.name)}</td><td>${esc(l.lot)}</td><td>${esc(l.supplier)}</td><td>${l.qty}</td><td>${esc(l.obs||'')}</td></tr>`)).join('')}</tbody></table>`}else if(type==='history'){title='Historial de movimientos';html=`<h1>${title}</h1><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Empaque</th><th>Proveedor</th><th>Lote</th><th>Cantidad</th><th>Observación</th></tr></thead><tbody>${db.moves.map(m=>`<tr><td>${datefmt(m.date)}</td><td>${esc(m.type)}</td><td>${esc(product(m.pid)?.name||'')}</td><td>${esc(m.supplier)}</td><td>${esc(m.lot)}</td><td>${m.qty}</td><td>${esc(m.obs||'')}</td></tr>`).join('')}</tbody></table>`}else if(type==='orders'){title='Solicitudes de pedido';html=`<h1>${title}</h1>${db.orders.map(o=>orderHtml(o)).join('<hr>')}`}else if(type==='draftOrder'){let o={id:editingOrderId||'BORRADOR',date:new Date().toISOString(),requester:document.getElementById('orderRequester').value,area:document.getElementById('orderArea').value,obs:document.getElementById('orderGeneralObs').value,lines:draftLines};title='Solicitud de pedido';html=orderHtml(o)}printHtml(html,title)}function printHtml(html,title){let w=window.open('','_blank');if(!w){toast('Permite ventanas emergentes para imprimir o guardar en PDF.');return}w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font:12px Arial,sans-serif;padding:28px;color:#17251D}h1{font-size:22px}h3{margin-top:24px}table{width:100%;border-collapse:collapse;margin:12px 0 24px}td,th{border:1px solid #ccd5ce;text-align:left;padding:8px}th{background:#edf3ee}p{line-height:1.5}@media print{button{display:none}}</style></head><body>${html}<script>window.onload=()=>window.print()<\/script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  // Project URL raíz, sin /rest/v1/
+  const SUPABASE_URL = "https://qdyuahzedmakksusanvh.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_WF7bHOg1uIlRk7jlMafvpg_2IkE4JxJ";
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+  const gate = document.getElementById("authGate");
+  const loginForm = document.getElementById("loginForm");
+  const loginButton = document.getElementById("loginButton");
+  const authError = document.getElementById("authError");
+  let cloudReady = false;
+  let revision = 0;
+  let channel = null;
+  let saveChain = Promise.resolve();
+  let generation = 0;
+  let saveInFlight = false;
+
+  const emptyState = () => ({products:[], moves:[], orders:[], arrivals:[], seq:0});
+
+  function showError(message) {
+    authError.textContent = message || "No se pudo iniciar sesión. Revisa tus datos.";
+  }
+
+  async function fetchCloudState() {
+    const {data, error} = await client
+      .from("app_state")
+      .select("data,revision")
+      .eq("id", 1)
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  function applyRemoteState(row, notify) {
+    if (!row || !row.data) return;
+    db = row.data;
+    revision = Number(row.revision || 1);
+    cloudReady = true;
+    renderAll();
+    if (notify && typeof toast === "function") toast("Inventario actualizado desde el otro dispositivo.");
+  }
+
+  function subscribeRealtime() {
+    if (channel) client.removeChannel(channel);
+    channel = client.channel("control-empaques-app-state")
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "app_state",
+        filter: "id=eq.1"
+      }, payload => {
+        const row = payload.new;
+        if (!row || Number(row.revision) <= revision) return;
+        // No sustituir una edición local que todavía está en proceso de guardado.
+        if (saveInFlight) return;
+        applyRemoteState(row, true);
+      })
+      .subscribe();
+  }
+
+  async function startApp(session) {
+    document.body.classList.add("authenticated");
+    try {
+      const row = await fetchCloudState();
+      applyRemoteState(row, false);
+      subscribeRealtime();
+      const topRight = document.querySelector(".topright");
+      if (topRight && !document.getElementById("logoutButton")) {
+        const status = document.createElement("span");
+        status.className = "sync-status";
+        status.textContent = "● Sincronizado";
+        status.id = "syncStatus";
+        topRight.prepend(status);
+        const logout = document.createElement("button");
+        logout.id = "logoutButton";
+        logout.className = "btn";
+        logout.type = "button";
+        logout.textContent = "Salir";
+        logout.onclick = async () => {
+          await client.auth.signOut();
+          window.location.reload();
+        };
+        topRight.appendChild(logout);
+      }
+    } catch (err) {
+      document.body.classList.remove("authenticated");
+      showError("No se pudo leer la base de datos. Verifica que ejecutaste el SQL y las políticas RLS. " + (err.message || ""));
+    }
+  }
+
+  loginForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    authError.textContent = "";
+    loginButton.disabled = true;
+    loginButton.textContent = "Ingresando…";
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    const {data, error} = await client.auth.signInWithPassword({email, password});
+    if (error) {
+      showError(error.message);
+      loginButton.disabled = false;
+      loginButton.textContent = "Ingresar al inventario";
+      return;
+    }
+    await startApp(data.session);
+    loginButton.disabled = false;
+    loginButton.textContent = "Ingresar al inventario";
+  });
+
+  // Sobrescribe la persistencia local: cada cambio se guarda en Supabase.
+  // Se usa control de revisión para detectar escrituras simultáneas y evitar
+  // que una versión antigua sobrescriba silenciosamente la más reciente.
+  window.persist = function() {
+    renderAll();
+    if (!cloudReady) return;
+    const snapshot = JSON.parse(JSON.stringify(db));
+    const myGeneration = generation;
+    saveChain = saveChain.then(async () => {
+      if (myGeneration !== generation || !cloudReady) return;
+      saveInFlight = true;
+      const status = document.getElementById("syncStatus");
+      if (status) status.textContent = "● Guardando…";
+      const {data, error} = await client.rpc("save_inventory_state", {
+        p_state: snapshot,
+        p_expected_revision: revision
+      });
+      saveInFlight = false;
+      if (error) {
+        if ((error.message || "").includes("CONFLICT")) {
+          generation++;
+          try {
+            const latest = await fetchCloudState();
+            applyRemoteState(latest, false);
+            if (typeof toast === "function") toast("Otro dispositivo guardó cambios. Se cargó la versión más reciente; vuelve a aplicar tu último cambio.");
+          } catch (_) {
+            if (typeof toast === "function") toast("Conflicto de sincronización. Recarga la página.");
+          }
+        } else {
+          if (status) status.textContent = "● Error al guardar";
+          if (typeof toast === "function") toast("No se pudo guardar en Supabase: " + error.message);
+        }
+        return;
+      }
+      revision = Number(data);
+      if (status) status.textContent = "● Sincronizado";
+    }).catch(err => {
+      saveInFlight = false;
+      const status = document.getElementById("syncStatus");
+      if (status) status.textContent = "● Error de conexión";
+      if (typeof toast === "function") toast("Error de sincronización: " + err.message);
+    });
+  };
+
+  client.auth.getSession().then(({data, error}) => {
+    if (error) {
+      showError(error.message);
+      return;
+    }
+    if (data.session) startApp(data.session);
+  });
+
+  client.auth.onAuthStateChange((event, session) => {
+    if (event === "SIGNED_OUT") {
+      cloudReady = false;
+      document.body.classList.remove("authenticated");
+    }
+  });
+})();
+</script>
+
+</body></html>`);w.document.close()}
 function exportCSV(type){let rows=[],filename=type;if(type==='stock'){rows=[['Código','Empaque','Stock real','Lotes','Demasías (no suman)','Estado','Stock físico','Cuadre'],...db.products.map(p=>[p.code,p.name,stock(p),p.lots.length,p.extras.reduce((n,x)=>n+x.qty,0),status(p)[0],p.physical??'',p.physical==null?'Sin conteo':p.physical===stock(p)?'Cuadrado':'Por cuadrar'])];filename='kardex_stock'}else if(type==='history'){rows=[['Fecha y hora','ID','Tipo','Empaque','Proveedor','Lote','Cantidad','Demasía','Referencia','Observación'],...db.moves.map(m=>[datefmt(m.date),m.id,m.type,product(m.pid)?.name||'',m.supplier,m.lot,m.qty,m.extra,m.ref,m.obs])];filename='historial_movimientos'}else if(type==='orders'){rows=[['Solicitud','Fecha','Solicitante','Área','Código','Empaque','Lote','Proveedor','Cantidad','Observaciones'],...db.orders.flatMap(o=>o.lines.map(l=>[o.id,datefmt(o.date),o.requester,o.area,product(l.pid)?.code,product(l.pid)?.name,l.lot,l.supplier,l.qty,l.obs]))];filename='solicitudes_pedido'}else{rows=[['Código','Empaque','Código de barras','Stock','Mínimo','Máximo','Observaciones'],...db.products.map(p=>[p.code,p.name,p.barcode,stock(p),p.min,p.max,p.obs])];filename='catalogo_empaques'}let csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download=filename+'.csv';a.click();URL.revokeObjectURL(a.href);toast('Archivo CSV generado. Puedes abrirlo con Excel.')}
 function renderAll(){renderStats();renderStock();renderSelects();renderMovement();renderOrders();renderArrivals();renderHistory();renderCatalog();renderDraft()}renderAll();
 </script>
